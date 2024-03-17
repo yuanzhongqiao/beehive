@@ -1,154 +1,175 @@
-Beehive
-=======
-
-[![Build Status](https://travis-ci.org/muesli/beehive.svg?branch=master)](https://travis-ci.org/muesli/beehive)
-[![Go ReportCard](https://goreportcard.com/badge/muesli/beehive)](https://goreportcard.com/report/muesli/beehive)
-[![GoDoc](https://godoc.org/github.com/golang/gddo?status.svg)](https://godoc.org/github.com/muesli/beehive)
-
-Beehive is an event and agent system, which allows you to create your own
-agents that perform automated tasks triggered by events and filters. It is
-modular, flexible and really easy to extend for anyone. It has modules
-(we call them *Hives*), so it can interface with, talk to, or retrieve
-information from Twitter, Tumblr, Email, IRC, Jabber, RSS, Jenkins, Hue - to
-name just a few. Check out the full list of [available Hives](https://github.com/muesli/beehive/wiki/Available-Hives)
-in our Wiki.
-
-Connecting those modules with each other lets you create immensly useful agents.
-
-#### Here are just a few examples of things Beehive could do for you:
-* Re-post tweets on your Tumblr blog
-* Forward incoming chat messages to your email account
-* Turn on the heating system if the temperature drops below a certain value
-* Run your own IRC bot that lets you trigger builds on a Jenkins CI
-* Control your Hue lighting system
-* Notify you when a stock's price drops below a certain value
-
-![beehive's Logo](/assets/logo_256.png?raw=true)
-
-## Installation
-
-### Packages & Binaries
-
-- Arch Linux: beehive ([AUR](https://aur.archlinux.org/packages/beehive/))
-- [Linux Static 64bit](https://github.com/muesli/beehive/releases/download/v0.4.0/beehive_0.4.0_Linux_x86_64.tar.gz)
-- [Linux Static armv6](https://github.com/muesli/beehive/releases/download/v0.4.0/beehive_0.4.0_Linux_armv6.tar.gz)
-- [macOS 64bit](https://github.com/muesli/beehive/releases/download/v0.4.0/beehive_0.4.0_Darwin_x86_64.tar.gz)
-- [Windows 64bit](https://github.com/muesli/beehive/releases/download/v0.4.0/beehive_0.4.0_Windows_x86_64.tar.gz)
-
-You can find even more official releases [here](https://github.com/muesli/beehive/releases).
-
-### Deployment Tools
-- Docker: `docker run --name beehive -d -p 8181:8181 fribbledom/beehive`
-- [Ansible](https://github.com/morbidick/ansible-role-beehive)
-
-### From source
-
-Beehive requires Go 1.13 or higher. Make sure you have a working Go environment.
-See the [install instructions](https://golang.org/doc/install.html).
-
-The recommended way is to fetch the sources and run make.
-
-    git clone --recursive https://github.com/muesli/beehive.git
-    cd beehive
-    make
-
-You can build and install the `beehive` binary like other Go binaries out there (`go get`)
-but you'll need to make sure Beehive can find the assets (images, javascript, css, etc).
-See the Troubleshooting/Notes section for additional details.
-
-Run `beehive --help` to see a full list of options.
-
-## Configuration
-
-Think of Hives as little plugins, extending Beehive's abilities with events you
-can react on and actions you can execute.
-
-Just as examples, there's a Twitter plugin that can
- - react to someone you follow posting a tweet (an event)
- - post a new tweet for you (an action)
- - ...
-
-or an RSS plugin that lets you
- - monitor RSS feeds and react on new feed items (another event)
-
-or an email plugin that gives you the ability to
- - send emails (another action)
-
-Each Hive lets you spawn one or multiple Bees in it, all working independently
-from another. That allows you to create separate plugin instances, e.g. one
-email-Bee for your private mail account, and another one for your work email.
-
-### Creating Bees
-
-Sounds complicated? It's not! Just for fun, let's setup Beehive to send us an
-email whenever an RSS feed gets updated. Start `beehive` and open <http://localhost:8181/>
-in your browser. Note that Beehive will create a config file `beehive.conf`
-in its current working directory, unless you specify a different file with the
-`-config` option.
-
-Note: If you built Beehive with `go build` instead of `make` you will have to
-start `beehive` from within its source directory in order for it to find all the
-resources for the admin interface. Also see the Troubleshooting & Notes section
-of this README.
-
-The admin interface will present you with a list of available Hives. We will
-need to create two Bees here, one for the RSS feed and one for your email
-account.
-
-![New Bees](https://github.com/muesli/beehive-docs/raw/master/screencaps/new_bees.gif)
-
-### Setting up a Chain
-
-Now we will have to create a new Chain, which will wire up the two Bees we just
-created. First we pick the Bee & Event we want to react on, then we pick the
-Bee we want to execute an Action with. The RSS-Bee's event gives us a whole set
-of parameters we can work with: the feed item's title, its links and
-description among others. You can manipulate and combine these parameters with
-a full templating language at your disposal. For example we can set the email's
-content to something like:
-
-```
-Title: {{.title}} - Link: {{index .links 0}}
-```
-
-Whenever this action gets executed, Beehive will replace `{{.title}}` with
-the RSS event's `title` parameter, which is the title of the feed item it
-retrieved. In the same manner `{{index .links 0}}` becomes the first URL of
-this event's `links` array.
-
-![New Chain](https://github.com/muesli/beehive-docs/raw/master/screencaps/new_chain.gif)
-
-That's it. Whenever the RSS-feed gets updated, Beehive will now send you an
-email! It's really easy to make various Bees work together seamlessly and do
-clever things for you. Try it yourself!
-
-You can find more information on how to configure Beehive and examples
-[in our Wiki](https://github.com/muesli/beehive/wiki/Configuration).
-
-## Troubleshooting & Notes
-
-The web interface and other resources are embedded in the binary by default.
-When using `make noembed`, Beehive tries to find those files
-in its current working directory, so it's currently recommended to start Beehive
-from within its git repository, if you plan to use the web interface.
-
-Should you still not be able to reach the web interface, check if the `config`
-directory in the git repository is empty. If that's the case, make sure the
-git submodules get initialized by running `git submodule update --init`.
-
-The web interface does *not* require authentication yet. Beehive by default
-accepts all connections from the loopback device *only*.
-
-If you want to bind Beehive to a different interface/address, run Beehive with
-the `-bind` and `-canonicalurl` parameters. For example:
-
-    beehive -bind "192.168.0.1:8181" -canonicalurl "http://192.168.0.1:8181"
-
-or
-
-    docker run --name beehive -d -e CANONICAL_URL="http://192.168.0.1:8181" -p 8181:8181 fribbledom/beehive
-
-## Development
-
-Need help? Want to hack on your own Hives? Join us on IRC (irc://freenode.net/#beehive) or [Gitter](https://gitter.im/the_beehive/Lobby).
-Follow the bees on [Twitter](https://twitter.com/beehive_app)!
+<div class="Box-sc-g0xbh4-0 bJMeLZ js-snippet-clipboard-copy-unpositioned" data-hpc="true"><article class="markdown-body entry-content container-lg" itemprop="text"><div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">蜂窝</font></font></h1><a id="user-content-beehive" class="anchor" aria-label="永久链接： 蜂巢" href="#beehive"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><a href="https://travis-ci.org/muesli/beehive" rel="nofollow"><img src="https://camo.githubusercontent.com/de2d0c021f185283f6e449d00cf9ddea4ffb9bcac847ba0a10f353d1e7868975/68747470733a2f2f7472617669732d63692e6f72672f6d7565736c692f626565686976652e7376673f6272616e63683d6d6173746572" alt="构建状态" data-canonical-src="https://travis-ci.org/muesli/beehive.svg?branch=master" style="max-width: 100%;"></a>
+<a href="https://goreportcard.com/report/muesli/beehive" rel="nofollow"><img src="https://camo.githubusercontent.com/85d06bdab2b3dd71063df64f50d3cd6760e868efd625c2a17629ab10a132e896/68747470733a2f2f676f7265706f7274636172642e636f6d2f62616467652f6d7565736c692f62656568697665" alt="去报告卡" data-canonical-src="https://goreportcard.com/badge/muesli/beehive" style="max-width: 100%;"></a>
+<a href="https://godoc.org/github.com/muesli/beehive" rel="nofollow"><img src="https://camo.githubusercontent.com/a01d41bd5f2b80b5b724ce837d72e8dbb24781d9c301b9af908914feb05cf6a1/68747470733a2f2f676f646f632e6f72672f6769746875622e636f6d2f676f6c616e672f6764646f3f7374617475732e737667" alt="戈多克" data-canonical-src="https://godoc.org/github.com/golang/gddo?status.svg" style="max-width: 100%;"></a></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">Beehive 是一个事件和代理系统，它允许您创建自己的代理来执行由事件和过滤器触发的自动化任务。</font><font style="vertical-align: inherit;">它是模块化的、灵活的，并且非常容易为任何人扩展。</font><font style="vertical-align: inherit;">它有模块（我们称之为</font></font><em><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">Hives</font></font></em><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">），因此它可以与 Twitter、Tumblr、电子邮件、IRC、Jabber、RSS、Jenkins、Hue 等进行交互、对话或检索信息，仅举几例。</font><font style="vertical-align: inherit;">在我们的 Wiki 中查看</font></font><a href="https://github.com/muesli/beehive/wiki/Available-Hives"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">可用蜂巢</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">的完整列表
+。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">将这些模块相互连接可以让您创建非常有用的代理。</font></font></p>
+<div class="markdown-heading" dir="auto"><h4 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">以下是 Beehive 可以为您做的事情的几个示例：</font></font></h4><a id="user-content-here-are-just-a-few-examples-of-things-beehive-could-do-for-you" class="anchor" aria-label="永久链接：以下是 Beehive 可以为您做的一些事情的示例：" href="#here-are-just-a-few-examples-of-things-beehive-could-do-for-you"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">在您的 Tumblr 博客上重新发布推文</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">将收到的聊天消息转发到您的电子邮件帐户</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果温度低于一定值则打开加热系统</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">运行您自己的 IRC 机器人，让您可以在 Jenkins CI 上触发构建</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">控制您的 Hue 照明系统</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">当股票价格跌至特定值以下时通知您</font></font></li>
+</ul>
+<p dir="auto"><a target="_blank" rel="noopener noreferrer" href="/muesli/beehive/blob/master/assets/logo_256.png?raw=true"><img src="/muesli/beehive/raw/master/assets/logo_256.png?raw=true" alt="蜂巢的标志" style="max-width: 100%;"></a></p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">安装</font></font></h2><a id="user-content-installation" class="anchor" aria-label="永久链接：安装" href="#installation"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">包和二进制文件</font></font></h3><a id="user-content-packages--binaries" class="anchor" aria-label="永久链接：包和二进制文件" href="#packages--binaries"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">Arch Linux：蜂巢（</font></font><a href="https://aur.archlinux.org/packages/beehive/" rel="nofollow"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">AUR</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">）</font></font></li>
+<li><a href="https://github.com/muesli/beehive/releases/download/v0.4.0/beehive_0.4.0_Linux_x86_64.tar.gz"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">Linux 静态 64 位</font></font></a></li>
+<li><a href="https://github.com/muesli/beehive/releases/download/v0.4.0/beehive_0.4.0_Linux_armv6.tar.gz"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">Linux 静态armv6</font></font></a></li>
+<li><a href="https://github.com/muesli/beehive/releases/download/v0.4.0/beehive_0.4.0_Darwin_x86_64.tar.gz"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">macOS 64 位</font></font></a></li>
+<li><a href="https://github.com/muesli/beehive/releases/download/v0.4.0/beehive_0.4.0_Windows_x86_64.tar.gz"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">视窗 64 位</font></font></a></li>
+</ul>
+<p dir="auto"><font style="vertical-align: inherit;"></font><a href="https://github.com/muesli/beehive/releases"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">您可以在这里</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">找到更多官方版本</font><font style="vertical-align: inherit;">。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">部署工具</font></font></h3><a id="user-content-deployment-tools" class="anchor" aria-label="永久链接：部署工具" href="#deployment-tools"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">码头工人：</font></font><code>docker run --name beehive -d -p 8181:8181 fribbledom/beehive</code></li>
+<li><a href="https://github.com/morbidick/ansible-role-beehive"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">安西布尔</font></font></a></li>
+</ul>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">从源头</font></font></h3><a id="user-content-from-source" class="anchor" aria-label="永久链接：来自来源" href="#from-source"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">Beehive 需要 Go 1.13 或更高版本。</font><font style="vertical-align: inherit;">确保您有一个有效的 Go 环境。</font><font style="vertical-align: inherit;">请参阅</font></font><a href="https://golang.org/doc/install.html" rel="nofollow"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">安装说明</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">推荐的方法是获取源代码并运行 make。</font></font></p>
+<div class="snippet-clipboard-content notranslate position-relative overflow-auto"><pre class="notranslate"><code>git clone --recursive https://github.com/muesli/beehive.git
+cd beehive
+make
+</code></pre><div class="zeroclipboard-container">
+    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 tooltipped-no-delay d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="git clone --recursive https://github.com/muesli/beehive.git
+cd beehive
+make" tabindex="0" role="button">
+      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
+    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
+</svg>
+      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
+    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
+</svg>
+    </clipboard-copy>
+  </div></div>
+<p dir="auto"><font style="vertical-align: inherit;"></font><code>beehive</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">您可以像其他 Go 二进制文件一样</font><font style="vertical-align: inherit;">构建和安装该二进制文件 ( </font></font><code>go get</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">)，但您需要确保 Beehive 可以找到资源（图像、javascript、css 等）。</font><font style="vertical-align: inherit;">有关更多详细信息，请参阅故障排除/注释部分。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">运行</font></font><code>beehive --help</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">以查看完整的选项列表。</font></font></p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">配置</font></font></h2><a id="user-content-configuration" class="anchor" aria-label="永久链接：配置" href="#configuration"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">将 Hives 视为小插件，通过您可以响应的事件和可以执行的操作来扩展 Beehive 的功能。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">举个例子，有一个 Twitter 插件可以</font></font></p>
+<ul dir="auto">
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">对您关注的发布推文的人做出反应（事件）</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">为您发布一条新推文（操作）</font></font></li>
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">...</font></font></li>
+</ul>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">或者一个 RSS 插件可以让你</font></font></p>
+<ul dir="auto">
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">监视 RSS 提要并对新的提要项目做出反应（另一个事件）</font></font></li>
+</ul>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">或一个电子邮件插件，让您能够</font></font></p>
+<ul dir="auto">
+<li><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">发送电子邮件（另一个操作）</font></font></li>
+</ul>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">每个蜂巢都可以让您在其中生成一只或多只蜜蜂，所有蜜蜂都独立工作。</font><font style="vertical-align: inherit;">这允许您创建单独的插件实例，例如，一个用于您的私人邮件帐户的 email-Bee，另一个用于您的工作电子邮件。</font></font></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">创建蜜蜂</font></font></h3><a id="user-content-creating-bees" class="anchor" aria-label="永久链接：创造蜜蜂" href="#creating-bees"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">听起来很复杂？</font><font style="vertical-align: inherit;">它不是！</font><font style="vertical-align: inherit;">只是为了好玩，让我们设置 Beehive 在 RSS 提要更新时向我们发送电子邮件。</font><font style="vertical-align: inherit;">启动</font></font><code>beehive</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">并</font><font style="vertical-align: inherit;">
+在浏览器中打开</font></font><a href="http://localhost:8181/" rel="nofollow"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">http://localhost:8181/ 。</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">请注意，Beehive 将</font></font><code>beehive.conf</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+在其当前工作目录中创建一个配置文件，除非您使用该
+</font></font><code>-config</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">选项指定不同的文件。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">注意：如果您使用而</font></font><code>go build</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">不是构建 Beehive </font></font><code>make</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">，则必须</font></font><code>beehive</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">从其源目录开始，以便它找到管理界面的所有资源。</font><font style="vertical-align: inherit;">另请参阅本自述文件的故障排除和注释部分。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">管理界面将向您显示可用配置单元的列表。</font><font style="vertical-align: inherit;">我们需要在这里创建两只 Bees，一只用于 RSS feed，一只用于您的电子邮件帐户。</font></font></p>
+<p dir="auto"><animated-image data-catalyst=""><a target="_blank" rel="noopener noreferrer" href="https://github.com/muesli/beehive-docs/raw/master/screencaps/new_bees.gif" data-target="animated-image.originalLink"><img src="https://github.com/muesli/beehive-docs/raw/master/screencaps/new_bees.gif" alt="新蜜蜂" style="max-width: 100%; display: inline-block;" data-target="animated-image.originalImage"></a>
+      <span class="AnimatedImagePlayer" data-target="animated-image.player" hidden="">
+        <a data-target="animated-image.replacedLink" class="AnimatedImagePlayer-images" href="https://github.com/muesli/beehive-docs/raw/master/screencaps/new_bees.gif" target="_blank">
+          
+        <span data-target="animated-image.imageContainer">
+            <img data-target="animated-image.replacedImage" alt="New Bees" class="AnimatedImagePlayer-animatedImage" src="https://github.com/muesli/beehive-docs/raw/master/screencaps/new_bees.gif" style="display: block; opacity: 1;">
+          <canvas class="AnimatedImagePlayer-stillImage" aria-hidden="true" width="640" height="678"></canvas></span></a>
+        <button data-target="animated-image.imageButton" class="AnimatedImagePlayer-images" tabindex="-1" aria-label="Play New Bees" hidden=""></button>
+        <span class="AnimatedImagePlayer-controls" data-target="animated-image.controls" hidden="">
+          <button data-target="animated-image.playButton" class="AnimatedImagePlayer-button" aria-label="Play New Bees">
+            <svg aria-hidden="true" focusable="false" class="octicon icon-play" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 13.5427V2.45734C4 1.82607 4.69692 1.4435 5.2295 1.78241L13.9394 7.32507C14.4334 7.63943 14.4334 8.36057 13.9394 8.67493L5.2295 14.2176C4.69692 14.5565 4 14.1739 4 13.5427Z">
+            </path></svg>
+            <svg aria-hidden="true" focusable="false" class="octicon icon-pause" width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+              <rect x="4" y="2" width="3" height="12" rx="1"></rect>
+              <rect x="9" y="2" width="3" height="12" rx="1"></rect>
+            </svg>
+          </button>
+          <a data-target="animated-image.openButton" aria-label="Open New Bees in new window" class="AnimatedImagePlayer-button" href="https://github.com/muesli/beehive-docs/raw/master/screencaps/new_bees.gif" target="_blank">
+            <svg aria-hidden="true" class="octicon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+              <path fill-rule="evenodd" d="M10.604 1h4.146a.25.25 0 01.25.25v4.146a.25.25 0 01-.427.177L13.03 4.03 9.28 7.78a.75.75 0 01-1.06-1.06l3.75-3.75-1.543-1.543A.25.25 0 0110.604 1zM3.75 2A1.75 1.75 0 002 3.75v8.5c0 .966.784 1.75 1.75 1.75h8.5A1.75 1.75 0 0014 12.25v-3.5a.75.75 0 00-1.5 0v3.5a.25.25 0 01-.25.25h-8.5a.25.25 0 01-.25-.25v-8.5a.25.25 0 01.25-.25h3.5a.75.75 0 000-1.5h-3.5z"></path>
+            </svg>
+          </a>
+        </span>
+      </span></animated-image></p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">设置链</font></font></h3><a id="user-content-setting-up-a-chain" class="anchor" aria-label="永久链接：设置链" href="#setting-up-a-chain"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">现在我们必须创建一个新的链，它将连接我们刚刚创建的两只蜜蜂。</font><font style="vertical-align: inherit;">首先，我们选择要对其做出反应的 Bee 和事件，然后选择要执行操作的 Bee。</font><font style="vertical-align: inherit;">RSS-Bee 的事件为我们提供了一整套可以使用的参数：提要项目的标题、其链接和描述等。</font><font style="vertical-align: inherit;">您可以使用可用的完整模板语言来操作和组合这些参数。</font><font style="vertical-align: inherit;">例如，我们可以将电子邮件的内容设置为：</font></font></p>
+<div class="snippet-clipboard-content notranslate position-relative overflow-auto"><pre class="notranslate"><code>Title: {{.title}} - Link: {{index .links 0}}
+</code></pre><div class="zeroclipboard-container">
+    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 tooltipped-no-delay d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="Title: {{.title}} - Link: {{index .links 0}}" tabindex="0" role="button">
+      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
+    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
+</svg>
+      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
+    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
+</svg>
+    </clipboard-copy>
+  </div></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">每当执行此操作时，Beehive 都会替换</font></font><code>{{.title}}</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">为 RSS 事件的</font></font><code>title</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">参数，即它检索到的提要项目的标题。</font><font style="vertical-align: inherit;">以同样的方式</font></font><code>{{index .links 0}}</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">成为该事件</font></font><code>links</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">数组的第一个 URL。</font></font></p>
+<p dir="auto"><animated-image data-catalyst=""><a target="_blank" rel="noopener noreferrer" href="https://github.com/muesli/beehive-docs/raw/master/screencaps/new_chain.gif" data-target="animated-image.originalLink"><img src="https://github.com/muesli/beehive-docs/raw/master/screencaps/new_chain.gif" alt="新链" style="max-width: 100%; display: inline-block;" data-target="animated-image.originalImage"></a>
+      <span class="AnimatedImagePlayer" data-target="animated-image.player" hidden="">
+        <a data-target="animated-image.replacedLink" class="AnimatedImagePlayer-images" href="https://github.com/muesli/beehive-docs/raw/master/screencaps/new_chain.gif" target="_blank">
+          
+        <span data-target="animated-image.imageContainer">
+            <img data-target="animated-image.replacedImage" alt="New Chain" class="AnimatedImagePlayer-animatedImage" src="https://github.com/muesli/beehive-docs/raw/master/screencaps/new_chain.gif" style="display: block; opacity: 1;">
+          <canvas class="AnimatedImagePlayer-stillImage" aria-hidden="true" width="640" height="640"></canvas></span></a>
+        <button data-target="animated-image.imageButton" class="AnimatedImagePlayer-images" tabindex="-1" aria-label="Play New Chain" hidden=""></button>
+        <span class="AnimatedImagePlayer-controls" data-target="animated-image.controls" hidden="">
+          <button data-target="animated-image.playButton" class="AnimatedImagePlayer-button" aria-label="Play New Chain">
+            <svg aria-hidden="true" focusable="false" class="octicon icon-play" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 13.5427V2.45734C4 1.82607 4.69692 1.4435 5.2295 1.78241L13.9394 7.32507C14.4334 7.63943 14.4334 8.36057 13.9394 8.67493L5.2295 14.2176C4.69692 14.5565 4 14.1739 4 13.5427Z">
+            </path></svg>
+            <svg aria-hidden="true" focusable="false" class="octicon icon-pause" width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+              <rect x="4" y="2" width="3" height="12" rx="1"></rect>
+              <rect x="9" y="2" width="3" height="12" rx="1"></rect>
+            </svg>
+          </button>
+          <a data-target="animated-image.openButton" aria-label="Open New Chain in new window" class="AnimatedImagePlayer-button" href="https://github.com/muesli/beehive-docs/raw/master/screencaps/new_chain.gif" target="_blank">
+            <svg aria-hidden="true" class="octicon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+              <path fill-rule="evenodd" d="M10.604 1h4.146a.25.25 0 01.25.25v4.146a.25.25 0 01-.427.177L13.03 4.03 9.28 7.78a.75.75 0 01-1.06-1.06l3.75-3.75-1.543-1.543A.25.25 0 0110.604 1zM3.75 2A1.75 1.75 0 002 3.75v8.5c0 .966.784 1.75 1.75 1.75h8.5A1.75 1.75 0 0014 12.25v-3.5a.75.75 0 00-1.5 0v3.5a.25.25 0 01-.25.25h-8.5a.25.25 0 01-.25-.25v-8.5a.25.25 0 01.25-.25h3.5a.75.75 0 000-1.5h-3.5z"></path>
+            </svg>
+          </a>
+        </span>
+      </span></animated-image></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">就是这样。</font><font style="vertical-align: inherit;">每当 RSS 源更新时，Beehive 现在都会向您发送一封电子邮件！</font><font style="vertical-align: inherit;">让各种蜜蜂无缝协作并为您做聪明的事情真的很容易。</font><font style="vertical-align: inherit;">自己尝试一下吧！</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"></font><a href="https://github.com/muesli/beehive/wiki/Configuration"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">您可以在我们的 Wiki 中</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">找到有关如何配置 Beehive 和示例的更多信息
+</font><font style="vertical-align: inherit;">。</font></font></p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">故障排除和注释</font></font></h2><a id="user-content-troubleshooting--notes" class="anchor" aria-label="永久链接：故障排除和注释" href="#troubleshooting--notes"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">默认情况下，Web 界面和其他资源嵌入在二进制文件中。</font><font style="vertical-align: inherit;">使用 时</font></font><code>make noembed</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">，Beehive 会尝试在其当前工作目录中查找这些文件，因此如果您打算使用 Web 界面，目前建议从其 git 存储库中启动 Beehive。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果您仍然无法访问 Web 界面，请检查</font></font><code>config</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">
+git 存储库中的目录是否为空。</font><font style="vertical-align: inherit;">如果是这种情况，请确保通过运行 来初始化 git 子模块</font></font><code>git submodule update --init</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">Web 界面尚不</font></font><em><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">需要</font></font></em><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">身份验证。</font></font><em><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">默认情况下，Beehive仅</font></font></em><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">接受来自环回设备的所有连接</font><font style="vertical-align: inherit;">。</font></font></p>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">如果要将 Beehive 绑定到不同的接口/地址，请使用</font></font><code>-bind</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">和</font></font><code>-canonicalurl</code><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">参数运行 Beehive。</font><font style="vertical-align: inherit;">例如：</font></font></p>
+<div class="snippet-clipboard-content notranslate position-relative overflow-auto"><pre class="notranslate"><code>beehive -bind "192.168.0.1:8181" -canonicalurl "http://192.168.0.1:8181"
+</code></pre><div class="zeroclipboard-container">
+    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 tooltipped-no-delay d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="beehive -bind &quot;192.168.0.1:8181&quot; -canonicalurl &quot;http://192.168.0.1:8181&quot;" tabindex="0" role="button">
+      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
+    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
+</svg>
+      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
+    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
+</svg>
+    </clipboard-copy>
+  </div></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">或者</font></font></p>
+<div class="snippet-clipboard-content notranslate position-relative overflow-auto"><pre class="notranslate"><code>docker run --name beehive -d -e CANONICAL_URL="http://192.168.0.1:8181" -p 8181:8181 fribbledom/beehive
+</code></pre><div class="zeroclipboard-container">
+    <clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 tooltipped-no-delay d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="docker run --name beehive -d -e CANONICAL_URL=&quot;http://192.168.0.1:8181&quot; -p 8181:8181 fribbledom/beehive" tabindex="0" role="button">
+      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
+    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
+</svg>
+      <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
+    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
+</svg>
+    </clipboard-copy>
+  </div></div>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">发展</font></font></h2><a id="user-content-development" class="anchor" aria-label="永久链接： 发展" href="#development"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">需要帮忙？</font><font style="vertical-align: inherit;">想破解你自己的蜂巢吗？</font><font style="vertical-align: inherit;">加入我们的 IRC (irc://freenode.net/#beehive) 或</font></font><a href="https://gitter.im/the_beehive/Lobby" rel="nofollow"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">Gitter</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">。</font></font><a href="https://twitter.com/beehive_app" rel="nofollow"><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">在Twitter</font></font></a><font style="vertical-align: inherit;"><font style="vertical-align: inherit;">上关注蜜蜂</font><font style="vertical-align: inherit;">！</font></font></p>
+</article></div>
